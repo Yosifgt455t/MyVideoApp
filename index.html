@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LTX-2-3 Video Generator</title>
+    <script type="module">
+        import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
+
+        // ==========================================
+        // ⬇️ الصق التوكن الخاص بك بين علامتي التنصيص بالأسفل ⬇️
+        const HF_TOKEN = "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"; 
+        // ==========================================
+
+        window.generateVideo = async function() {
+            const prompt = document.getElementById('prompt').value;
+            const imageFile = document.getElementById('imageInput').files[0];
+            const status = document.getElementById('status');
+            const videoContainer = document.getElementById('videoContainer');
+            const btn = document.getElementById('genBtn');
+
+            if (!prompt) {
+                alert("يرجى كتابة وصف للفيديو!");
+                return;
+            }
+
+            try {
+                btn.disabled = true;
+                status.innerText = "جاري الاتصال بالمودل... يرجى الانتظار";
+                videoContainer.innerHTML = "";
+
+                // الاتصال بالمودل مع استخدام التوكن للأمان والسرعة
+                const client = await Client.connect("Lightricks/LTX-2-3", { 
+                    hf_token: HF_TOKEN 
+                });
+
+                status.innerText = "المودل يعمل الآن على إنشاء الفيديو... (دقيقة تقريباً)";
+
+                const result = await client.predict("/generate_video", { 
+                    input_image: imageFile ? imageFile : null,
+                    prompt: prompt,
+                    negative_prompt: "low quality, blurry, distorted",
+                    duration: 3.0,
+                    enhance_prompt: true,
+                    seed: 42,
+                    randomize_seed: true,
+                    guidance_scale: 3.0,
+                    num_inference_steps: 40,
+                    height: 1024,
+                    width: 1216,
+                    upscale: false
+                });
+
+                const videoUrl = result.data[0].url;
+
+                videoContainer.innerHTML = `
+                    <video controls width="100%" style="border-radius: 12px; border: 2px solid #ff4c4c;">
+                        <source src="${videoUrl}" type="video/mp4">
+                    </video>
+                    <br>
+                    <a href="${videoUrl}" download="video.mp4" class="download-link">⬇️ تحميل الفيديو</a>
+                `;
+                status.innerText = "تم التصميم بنجاح!";
+
+            } catch (error) {
+                console.error(error);
+                status.innerText = "حدث خطأ: تأكد من التوكن أو حالة الـ Space.";
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+    <style>
+        body { font-family: sans-serif; background: #0f0f0f; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .app-container { background: #1a1a1a; padding: 30px; border-radius: 20px; width: 90%; max-width: 550px; text-align: center; border: 1px solid #333; }
+        h1 { color: #ff4c4c; }
+        .input-group { margin-bottom: 20px; text-align: right; }
+        input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #333; background: #252525; color: #fff; box-sizing: border-box; }
+        button { background: #ff4c4c; color: white; border: none; padding: 15px; border-radius: 10px; cursor: pointer; font-size: 1.1rem; width: 100%; font-weight: bold; }
+        #status { margin-top: 20px; color: #00ffcc; }
+        .download-link { display: inline-block; margin-top: 15px; color: #ff4c4c; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>LTX-2-3 Video Maker 🎬</h1>
+    <div class="input-group">
+        <input type="text" id="prompt" placeholder="اكتب وصف الفيديو هنا...">
+    </div>
+    <div class="input-group">
+        <label style="font-size: 0.8rem; color: #888;">صورة (اختياري):</label>
+        <input type="file" id="imageInput" accept="image/*">
+    </div>
+    <button id="genBtn" onclick="generateVideo()">ابدأ الإنشاء</button>
+    <div id="status"></div>
+    <div id="videoContainer"></div>
+</div>
+
+</body>
+</html>
