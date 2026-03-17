@@ -29,31 +29,34 @@
 
                 const client = await Client.connect("Lightricks/LTX-2-3", { hf_token: HF_TOKEN });
 
+                // التعديل هنا: أرسلنا فقط البارامترات المقبولة في الـ API الخاص بك
                 const submission = client.submit("/generate_video", { 
-                    prompt: promptInput.value,
                     input_image: null,
-                    negative_prompt: "low quality",
+                    prompt: promptInput.value,
                     duration: 3,
+                    enhance_prompt: true,
                     seed: 42,
                     randomize_seed: true,
-                    guidance_scale: 3,
-                    num_inference_steps: 40,
                     height: 1024,
                     width: 1216
                 });
 
                 for await (const message of submission) {
                     if (message.type === "status") {
-                        status.innerHTML = `رقمك في الطابور: ${message.position || 'جاري المعالجة..'}`;
+                        status.innerHTML = `رقمك في الطابور: <b style="color:#ff4c4c">${message.position || 'جاري المعالجة..'}</b>`;
                     }
                     if (message.type === "data") {
                         const videoUrl = message.data[0].url;
-                        videoContainer.innerHTML = `<video controls autoplay loop style="width:100%; border-radius:10px;"><source src="${videoUrl}"></video>`;
-                        status.innerHTML = "✅ تم الانتهاء!";
+                        videoContainer.innerHTML = `
+                            <video controls autoplay loop style="width:100%; border-radius:15px; border: 2px solid #ff4c4c;">
+                                <source src="${videoUrl}">
+                            </video>`;
+                        status.innerHTML = "✅ تم إنشاء الفيديو بنجاح!";
                     }
                 }
             } catch (e) {
-                status.innerHTML = "❌ خطأ: " + e.message;
+                console.error(e);
+                status.innerHTML = "<b style="color:red">❌ خطأ: </b>" + e.message;
             } finally {
                 btn.disabled = false;
             }
@@ -61,19 +64,22 @@
     </script>
 
     <style>
-        body { background: #111; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-        .box { background: #222; padding: 20px; border-radius: 15px; max-width: 400px; margin: auto; border: 1px solid #333; }
-        input { width: 90%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; }
-        button { background: #ff4c4c; color: white; border: none; padding: 12px 20px; border-radius: 8px; width: 90%; cursor: pointer; font-weight: bold; }
-        #status { margin-top: 20px; color: #00ffcc; font-size: 0.9rem; }
+        body { background: #0a0a0a; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
+        .box { background: #161616; padding: 30px; border-radius: 20px; max-width: 450px; margin: auto; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { color: #ff4c4c; margin-bottom: 20px; }
+        input { width: 100%; padding: 15px; margin: 15px 0; border-radius: 10px; border: 1px solid #333; background: #222; color: white; box-sizing: border-box; }
+        button { background: #ff4c4c; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; cursor: pointer; font-weight: bold; font-size: 1.1rem; }
+        button:disabled { background: #555; }
+        #status { margin-top: 20px; color: #00ffcc; font-size: 0.9rem; min-height: 40px; }
+        #videoContainer { margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2 style="color:#ff4c4c">LTX-2-3 Video Maker</h2>
-    <input type="text" id="prompt" placeholder="اكتب وصف الفيديو هنا...">
-    <button id="genBtn" onclick="generateVideo()">ابدأ الإنشاء</button>
+    <h2>LTX-2-3 Studio 🎬</h2>
+    <input type="text" id="prompt" placeholder="ماذا تريد أن ترى في الفيديو؟">
+    <button id="genBtn" onclick="generateVideo()">ابدأ التصميم</button>
     <div id="status"></div>
     <div id="videoContainer"></div>
 </div>
