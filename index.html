@@ -3,85 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LTX-2-3 Video App</title>
+    <title>Thinking AI Chatbot</title>
     
     <script type="module">
         import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
 
-        // ضعي التوكن هنا بدلاً من الجملة العربية
-        const HF_TOKEN = "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";
+        // ==========================================
+        // 1. ضع التوكن الخاص بك هنا
+        const HF_TOKEN = "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"; 
+        
+        // 2. اسم الـ Space الجديد الذي اخترته
+        const SPACE_ID = "TeichAI/Qwen3-4B-Thinking-2507-Claude-4.5-Opus";
+        // ==========================================
 
-        window.generateVideo = async function() {
-            const promptInput = document.getElementById('prompt');
-            const status = document.getElementById('status');
-            const videoContainer = document.getElementById('videoContainer');
-            const btn = document.getElementById('genBtn');
+        let chatHistory = []; // لحفظ سياق المحادثة
 
-            if (!promptInput.value.trim()) {
-                alert("يرجى كتابة وصف للفيديو!");
-                return;
-            }
+        window.sendMessage = async function() {
+            const input = document.getElementById('userInput');
+            const chatBox = document.getElementById('chatBox');
+            const btn = document.getElementById('sendBtn');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // عرض رسالة المستخدم
+            appendMessage("user", message);
+            input.value = "";
+            btn.disabled = true;
+
+            // إضافة مكان لإجابة البوت مع علامة تحميل
+            const botMsgDiv = appendMessage("bot", "جاري التفكير...");
 
             try {
-                btn.disabled = true;
-                status.innerHTML = "⏳ جاري الاتصال بالمودل...";
-                videoContainer.innerHTML = "";
-
-                const client = await Client.connect("Lightricks/LTX-2-3", { hf_token: HF_TOKEN });
-
-                // التعديل هنا: أرسلنا فقط البارامترات المقبولة في الـ API الخاص بك
-                const submission = client.submit("/generate_video", { 
-                    input_image: null,
-                    prompt: promptInput.value,
-                    duration: 3,
-                    enhance_prompt: true,
-                    seed: 42,
-                    randomize_seed: true,
-                    height: 1024,
-                    width: 1216
+                // الاتصال بالمودل
+                const client = await Client.connect(SPACE_ID, { hf_token: HF_TOKEN });
+                
+                // إرسال الطلب للمودل (Qwen Thinking عادة يستخدم هذه المعايير)
+                const result = await client.predict("/chat", { 
+                    message: message,
+                    history: chatHistory,
+                    system_prompt: "أنت مساعد ذكي ومفكر. قدم إجابات دقيقة ومنطقية باللغة العربية.",
                 });
 
-                for await (const message of submission) {
-                    if (message.type === "status") {
-                        status.innerHTML = `رقمك في الطابور: <b style="color:#ff4c4c">${message.position || 'جاري المعالجة..'}</b>`;
-                    }
-                    if (message.type === "data") {
-                        const videoUrl = message.data[0].url;
-                        videoContainer.innerHTML = `
-                            <video controls autoplay loop style="width:100%; border-radius:15px; border: 2px solid #ff4c4c;">
-                                <source src="${videoUrl}">
-                            </video>`;
-                        status.innerHTML = "✅ تم إنشاء الفيديو بنجاح!";
-                    }
-                }
-            } catch (e) {
-                console.error(e);
-                status.innerHTML = "<b style="color:red">❌ خطأ: </b>" + e.message;
+                // الحصول على الإجابة وتحديث الواجهة
+                // ملاحظة: المودل قد يعيد الإجابة في result.data[0]
+                const response = result.data[0];
+                botMsgDiv.innerText = response;
+
+                // تحديث تاريخ المحادثة ليتذكر البوت ما قلته سابقاً
+                chatHistory.push([message, response]);
+
+            } catch (error) {
+                console.error("Error:", error);
+                botMsgDiv.innerText = "❌ حدث خطأ في الاتصال. تأكد أن المودل يعمل (Running) وأن التوكن صحيح.";
             } finally {
                 btn.disabled = false;
+                chatBox.scrollTop = chatBox.scrollHeight;
             }
-        };
+        }
+
+        function appendMessage(role, text) {
+            const chatBox = document.getElementById('chatBox');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}-message`;
+            msgDiv.innerText = text;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return msgDiv;
+        }
+
+        window.handleKeyPress = function(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
     </script>
 
     <style>
-        body { background: #0a0a0a; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-        .box { background: #161616; padding: 30px; border-radius: 20px; max-width: 450px; margin: auto; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h2 { color: #ff4c4c; margin-bottom: 20px; }
-        input { width: 100%; padding: 15px; margin: 15px 0; border-radius: 10px; border: 1px solid #333; background: #222; color: white; box-sizing: border-box; }
-        button { background: #ff4c4c; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; cursor: pointer; font-weight: bold; font-size: 1.1rem; }
-        button:disabled { background: #555; }
-        #status { margin-top: 20px; color: #00ffcc; font-size: 0.9rem; min-height: 40px; }
-        #videoContainer { margin-top: 20px; }
+        body { background: #0c0c0c; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .chat-card { width: 100%; max-width: 500px; height: 90vh; background: #161616; border-radius: 20px; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid #222; }
+        .header { padding: 20px; text-align: center; border-bottom: 1px solid #222; background: #1a1a1a; border-radius: 20px 20px 0 0; }
+        .header h2 { margin: 0; color: #00d1ff; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
+        .chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
+        .message { max-width: 85%; padding: 12px 18px; border-radius: 18px; font-size: 0.95rem; line-height: 1.6; position: relative; }
+        .user-message { align-self: flex-start; background: #00d1ff; color: #000; font-weight: 500; border-bottom-right-radius: 2px; }
+        .bot-message { align-self: flex-end; background: #222; color: #fff; border-bottom-left-radius: 2px; border: 1px solid #333; }
+        .input-group { padding: 20px; background: #1a1a1a; display: flex; gap: 10px; border-top: 1px solid #222; }
+        input { flex: 1; background: #0c0c0c; border: 1px solid #333; padding: 12px 15px; border-radius: 12px; color: #fff; outline: none; transition: 0.3s; }
+        input:focus { border-color: #00d1ff; }
+        button { background: #00d1ff; color: #000; border: none; padding: 10px 22px; border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #00b8e6; transform: translateY(-1px); }
+        button:disabled { background: #333; color: #666; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <h2>LTX-2-3 Studio 🎬</h2>
-    <input type="text" id="prompt" placeholder="ماذا تريد أن ترى في الفيديو؟">
-    <button id="genBtn" onclick="generateVideo()">ابدأ التصميم</button>
-    <div id="status"></div>
-    <div id="videoContainer"></div>
+<div class="chat-card">
+    <div class="header">
+        <h2>Thinking AI 🧠</h2>
+    </div>
+    <div id="chatBox" class="chat-box">
+        <div class="message bot-message">مرحباً! أنا مودل Qwen3 المتطور. اسألني أي شيء وسأفكر بعمق قبل الإجابة.</div>
+    </div>
+    <div class="input-group">
+        <input type="text" id="userInput" placeholder="اكتب سؤالك هنا..." onkeypress="handleKeyPress(event)">
+        <button id="sendBtn" onclick="sendMessage()">إرسال</button>
+    </div>
 </div>
 
 </body>
